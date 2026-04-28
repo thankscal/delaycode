@@ -45,7 +45,7 @@
             font-size: 1rem;
         }
 
-        /* 過濾欄容器 (下拉 + 搜尋 + 統計) */
+        /* 過濾欄容器 */
         .filter-bar {
             background: white;
             border-radius: 48px;
@@ -179,7 +179,6 @@
             font-weight: 500;
         }
 
-        /* 代碼列表格線 */
         .codes-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -187,7 +186,6 @@
             padding: 20px 24px 24px;
         }
 
-        /* 延誤卡片 */
         .delay-card {
             background: #ffffff;
             border-radius: 20px;
@@ -290,7 +288,7 @@
 <div class="container">
     <div class="header">
         <h1>✈️ 航班延誤歸因代碼庫</h1>
-        <p>IATA標準延誤分類 | 依類別篩選 + 關鍵字搜尋 | 精準快速查詢</p>
+        <p>IATA標準延誤分類 · 依文件順序排列 · 支援類別與關鍵字篩選</p>
     </div>
 
     <div class="filter-bar">
@@ -308,12 +306,12 @@
 
     <div id="categoriesContainer"></div>
     <div class="footer-note">
-        📌 涵蓋機場、機務、貨運、客運、天氣、反應性延誤等全部類別 · 支援類別與關鍵字聯合篩選
+        📌 涵蓋機場、機務、貨運、客運、天氣、反應性延誤等全部類別 · 排序依照原始文件順序
     </div>
 </div>
 
 <script>
-    // ---------- 完整延誤代碼資料 (將簡體説明轉為繁體) ----------
+    // ---------- 完整延誤代碼資料 (繁體說明) ----------
     const delayData = [
         // Airport and Governmental Authorities
         { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AA", en: "Airport facilities (air bridge/parking stand not available, air bridge malfunction, gate facilities limitation/malfunction, power supply, other terminal facilities, etc.)", zh: "機場設施 (空橋/停機坪不足、空橋故障、登機門設施不足/故障、電源供應、其他機場設施等)" },
@@ -423,7 +421,7 @@
         { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PR", en: "Reload baggage of late-show passengers after unloading", zh: "卸載晚登機旅客之行李後再裝回" },
         { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PS", en: "Check-in counters late closing (acceptance of CI workers)", zh: "櫃台晚關 (收受員工)" },
         { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PO", en: "Other passenger's reason (explain in SI column)", zh: "其他乘客之原因 (於備註欄內說明原因)" },
-        // Reactionary (前站延誤歸因)
+        // Reactionary (Reactionary Delays)  依照文件順序應在乘客行李之後，客運、運務、天氣等之前
         { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RA", en: "Late arrival due to airport and governmental authorities", zh: "因機場主管單位延誤到站" },
         { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RB", en: "Late arrival due to insufficient ground / flying time", zh: "因地停/飛時不足延誤到站" },
         { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RC", en: "Late arrival due to catering service", zh: "因餐服延誤到站" },
@@ -467,7 +465,28 @@
         { category: "EDP/Automated Equipment Failure", categoryZh: "資訊管理系統", code: "XC", en: "Communication network (SITA, ACARS, PTT, LAN) failure/slow response", zh: "SITA/ACARS/PTT/LAN 網路系統故障/反應遲緩" }
     ];
 
-    // 建構分類Map及下拉選項陣列
+    // 依照原始文檔順序定義分類顯示順序 (英文類別名稱)
+    const categoryOrder = [
+        "Airport and Governmental Authorities",
+        "Schedule and Planning",
+        "Cabin Cleaning and Catering Service",
+        "Damage to Aircraft",
+        "In-flight Service",
+        "Cargo and Mail",
+        "Operation Dispatch",
+        "Loading / Unloading",
+        "Technical and Aircraft Equipment",
+        "Miscellaneous",
+        "Flight Operations",
+        "Passenger and Baggage",
+        "Reactionary (Reactionary Delays)",
+        "Marketing and Sales",
+        "Traffic",
+        "Weather",
+        "EDP/Automated Equipment Failure"
+    ];
+
+    // 建構分類Map
     const categoryMap = new Map();
     delayData.forEach(item => {
         if (!categoryMap.has(item.category)) {
@@ -475,13 +494,21 @@
         }
         categoryMap.get(item.category).items.push(item);
     });
-    const sortedCategories = Array.from(categoryMap.keys()).sort((a,b)=>a.localeCompare(b));
+
+    // 依照自定義順序產生選項與渲染用的類別列表 (保留未在順序中的類別，但此處已全部涵蓋)
+    const sortedCategoriesForSelect = categoryOrder.filter(cat => categoryMap.has(cat));
+    // 若有遺漏則補在最後 (以防萬一)
+    const extraCategories = Array.from(categoryMap.keys()).filter(cat => !categoryOrder.includes(cat));
+    const finalSortedCategories = [...sortedCategoriesForSelect, ...extraCategories];
+
     const categorySelect = document.getElementById('categorySelect');
     function buildSelect() {
         let options = '<option value="ALL">📂 全部類別 (所有延誤代碼)</option>';
-        for (let catEn of sortedCategories) {
+        for (let catEn of finalSortedCategories) {
             const catInfo = categoryMap.get(catEn);
-            options += `<option value="${escapeHtml(catEn)}">${escapeHtml(catInfo.categoryZh)} · ${escapeHtml(catEn)}</option>`;
+            if (catInfo) {
+                options += `<option value="${escapeHtml(catEn)}">${escapeHtml(catInfo.categoryZh)} · ${escapeHtml(catEn)}</option>`;
+            }
         }
         categorySelect.innerHTML = options;
     }
@@ -500,7 +527,7 @@
 
         let categoriesToShow = [];
         if (selectedCategory === 'ALL') {
-            categoriesToShow = sortedCategories;
+            categoriesToShow = finalSortedCategories;
         } else {
             if (categoryMap.has(selectedCategory)) categoriesToShow = [selectedCategory];
             else categoriesToShow = [];
@@ -508,6 +535,7 @@
 
         for (let catEn of categoriesToShow) {
             const catData = categoryMap.get(catEn);
+            if (!catData) continue;
             let filteredItems = catData.items.filter(item => {
                 if (searchText === '') return true;
                 return item.code.toLowerCase().includes(searchText) ||
