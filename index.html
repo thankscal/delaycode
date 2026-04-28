@@ -1,0 +1,576 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>航班延误代码查询系统 | 分类筛选 + 搜索</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', 'Roboto', 'Noto Sans', 'Inter', 'Helvetica Neue', sans-serif;
+        }
+
+        body {
+            background: #f0f4f9;
+            color: #1e293b;
+            padding: 24px 20px 60px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 头部区域 */
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0c3349, #1f5e88);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+
+        .header p {
+            color: #4a627a;
+            margin-top: 8px;
+            font-size: 1rem;
+        }
+
+        /* 过滤栏容器 (下拉 + 搜索 + 统计) */
+        .filter-bar {
+            background: white;
+            border-radius: 48px;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.03), 0 1px 4px rgba(0, 0, 0, 0.06);
+            padding: 10px 20px 10px 28px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 32px;
+            border: 1px solid #e2edf2;
+        }
+
+        .select-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 4px 12px 4px 18px;
+            border-radius: 40px;
+            border: 1px solid #e0eaf0;
+        }
+
+        .select-wrapper label {
+            font-weight: 600;
+            color: #2c5a7a;
+            font-size: 0.85rem;
+        }
+
+        #categorySelect {
+            background: transparent;
+            border: none;
+            padding: 10px 8px 10px 4px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #1f4662;
+            outline: none;
+            cursor: pointer;
+            min-width: 200px;
+        }
+
+        .search-group {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #f8fafc;
+            padding: 4px 16px;
+            border-radius: 40px;
+            border: 1px solid #e0eaf0;
+        }
+
+        .search-icon {
+            color: #6c86a3;
+            font-size: 1rem;
+        }
+
+        #searchInput {
+            flex: 1;
+            border: none;
+            padding: 10px 0;
+            font-size: 0.95rem;
+            background: transparent;
+            outline: none;
+            color: #0f2b3d;
+        }
+
+        #searchInput::placeholder {
+            color: #9aaebf;
+        }
+
+        .stats {
+            background: #eef2ff;
+            padding: 6px 18px;
+            border-radius: 34px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1e4a6b;
+            white-space: nowrap;
+        }
+
+        .reset-btn {
+            background: #eef2f9;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 34px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #2c5a7a;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .reset-btn:hover {
+            background: #e0e9f2;
+            color: #0f3b55;
+        }
+
+        /* 分类卡片样式 */
+        .category {
+            background: white;
+            border-radius: 28px;
+            margin-bottom: 32px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.02), 0 1px 3px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            border: 1px solid #e6edf2;
+        }
+
+        .category-header {
+            background: linear-gradient(98deg, #f8fafd 0%, #ffffff 100%);
+            padding: 18px 28px;
+            border-bottom: 2px solid #dce9f0;
+        }
+
+        .category-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+            background: linear-gradient(120deg, #1f4e6e, #2c6288);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .category-sub {
+            font-size: 0.85rem;
+            color: #5c7f9c;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        /* 代码列表网格 */
+        .codes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 12px;
+            padding: 20px 24px 24px;
+        }
+
+        /* 延误卡片 */
+        .delay-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 16px 18px;
+            transition: all 0.2s ease;
+            border: 1px solid #eef3f8;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        .delay-card:hover {
+            border-color: #cbdde9;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.03);
+            transform: translateY(-2px);
+            background: #fefefe;
+        }
+
+        .code-badge {
+            display: inline-block;
+            background: #eef2fc;
+            font-weight: 800;
+            font-size: 1rem;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            padding: 4px 12px;
+            border-radius: 40px;
+            color: #1b5a7e;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            border: 0.5px solid #cfe2ed;
+        }
+
+        .en-desc {
+            font-weight: 600;
+            font-size: 0.92rem;
+            line-height: 1.4;
+            color: #1e3a4d;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        .zh-desc {
+            font-size: 0.85rem;
+            color: #4c6f8c;
+            line-height: 1.45;
+            border-top: 1px dashed #e4edf3;
+            padding-top: 10px;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 48px 20px;
+            background: white;
+            border-radius: 48px;
+            color: #6c86a3;
+            font-weight: 500;
+            font-size: 1.1rem;
+            margin-top: 20px;
+        }
+
+        .footer-note {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.75rem;
+            color: #7e95ae;
+            border-top: 1px solid #dee9f0;
+            padding-top: 24px;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 16px 12px;
+            }
+            .filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                border-radius: 32px;
+                padding: 16px 20px;
+            }
+            .select-wrapper, .search-group {
+                width: 100%;
+            }
+            .stats, .reset-btn {
+                align-self: flex-start;
+            }
+            .codes-grid {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+            .category-header {
+                padding: 14px 20px;
+            }
+            .category-title {
+                font-size: 1.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>✈️ 航班延误归因代码库</h1>
+        <p>IATA标准延误分类 | 按类别筛选 + 关键词搜索 | 精准快速查询</p>
+    </div>
+
+    <div class="filter-bar">
+        <div class="select-wrapper">
+            <label>📁 类别：</label>
+            <select id="categorySelect"></select>
+        </div>
+        <div class="search-group">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="输入代码 (如 AA, PD, WA) 或中/英文关键词..." autocomplete="off">
+        </div>
+        <div class="stats" id="resultStats">加载中...</div>
+        <button class="reset-btn" id="resetBtn">⟳ 重置筛选</button>
+    </div>
+
+    <div id="categoriesContainer"></div>
+    <div class="footer-note">
+        📌 涵盖机场、机务、货运、客运、天气、反应性延误等全部类别 · 支持类别与关键词联合筛选
+    </div>
+</div>
+
+<script>
+    // ---------- 完整延误代码数据 (根据文档整理) ----------
+    const delayData = [
+        // Airport and Governmental Authorities
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AA", en: "Airport facilities (air bridge/parking stand not available, air bridge malfunction, gate facilities limitation/malfunction, power supply, other terminal facilities, etc.)", zh: "機場設施 (空橋/停機坪不足、空橋故障、登機門設施不足/故障、電源供應、其他機場設施等)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AB", en: "CIQ (congestion, short of personnel/facility, security, etc.)", zh: "聯檢 (壅塞、人力/設施短缺、安檢等)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AC", en: "Mandatory security (bomb threat, fire alarm, security check involving passenger/baggage/cargo etc.)", zh: "特別安全檢查 (炸彈恐嚇、火警、乘客/行李/貨運等)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AD", en: "Lack of or breakdown of security facilities (e.g. X-ray machine)", zh: "安檢設備不足或故障(如：X-光機)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AE", en: "Restrictions at departure airport (runway/taxiway closure, VIP movement, military exercise, night curfew, etc.)", zh: "離場機場限制 (跑道/滑行道關閉、貴賓或軍事演習、宵禁等)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AF", en: "Offload baggage due to passenger cancel flight (detained by CIQ, refusal to CIQ)", zh: "因旅客被迫取消行程而卸載行李(旅客拒絕接受安檢或其他原因遭聯檢留置)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AG", en: "Restrictions at destination airport (runway/taxiway closure, VIP movement, military exercise, night curfew, etc.)", zh: "到場機場限制 (跑道/滑行道關閉、貴賓或軍事演習、宵禁等)" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AH", en: "Late safety check (resulted in late passenger boarding/ baggage or cargo security check)", zh: "安全檢查延誤" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AJ", en: "ATC, ground movement control (after cabin door close), CDM delay.", zh: "等待航管許可 (客艙門關閉後), or CDM延誤." },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AK", en: "A/C towing delay due Ramp congestion", zh: "機坪壅塞導致拖機延誤." },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AS", en: "Malfunction of airport baggage handling system (conveyor belt)", zh: "因機場行李處理系統(輸送帶)故障造成延誤" },
+        { category: "Airport and Governmental Authorities", categoryZh: "機場主管單位", code: "AO", en: "Other delay due to airport/governmental, or quarantine reasons (explain in SI column)", zh: "因其他機場主管單位、或清消原因造成之延誤(於備註欄內說明原因)" },
+        // Schedule and Planning
+        { category: "Schedule and Planning", categoryZh: "班表", code: "BA", en: "Insufficient scheduled ground time", zh: "表定地停時間不足" },
+        { category: "Schedule and Planning", categoryZh: "班表", code: "BB", en: "Insufficient re-scheduled ground time", zh: "表訂時間更改後之地停時間不足" },
+        // Cabin Cleaning and Catering Service
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CC", en: "Meals addition, due last minute accepting standby and upgraded passengers", zh: "臨時接受後補或升等乘客而加餐" },
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CE", en: "Catering order late or incorrect catering order (number or type etc.)", zh: "訂餐過遲或訂單原因" },
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CM", en: "Late/missing/wrong delivery of catering or amenities", zh: "餐點或其他侍應品裝載延誤、遺漏原因" },
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CN", en: "Late completion of cabin cleaning due to shortage of manpower", zh: "客艙清潔延誤因清潔人力不足" },
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CL", en: "Late completion of cabin cleaning due to aircraft schedule irregularity", zh: "因班機離到時間變動造成客艙清潔人力調度不及" },
+        { category: "Cabin Cleaning and Catering Service", categoryZh: "機艙清潔及餐飲服務", code: "CO", en: "Other delay due to catering (explain in SI column)", zh: "其他餐服或空中用品作業相關原因造成之延誤 (於備註欄內說明原因)" },
+        // Damage to Aircraft
+        { category: "Damage to Aircraft", categoryZh: "飛機損壞", code: "DA", en: "Damage during flight operations (bird strike, collision during taxiing, severe weather conditions, heavy or overweight landing, etc.)", zh: "飛行中之損壞 (鳥擊、滑行中撞擊、惡劣天氣、重落地等)" },
+        { category: "Damage to Aircraft", categoryZh: "飛機損壞", code: "DB", en: "Damage during ground operations (collisions, loading/off-loading damage, towing, contamination, extreme weather conditions, etc.)", zh: "地面操作中之損壞 (撞擊、裝/卸載損傷、拖機、污染、惡劣天氣等)" },
+        // In-flight Service
+        { category: "In-flight Service", categoryZh: "空服", code: "EB", en: "Late cabin crew boarding other than standby/ replacement/ connection", zh: "非因轉機或待命臨時調派致客艙組員就工作崗位過遲" },
+        { category: "In-flight Service", categoryZh: "空服", code: "EC", en: "Awaiting standby/ replacement/aircraft change connection cabin crew", zh: "因轉機或待命臨時調派或因更換航機，致客艙組員就工作崗位過遲" },
+        { category: "In-flight Service", categoryZh: "空服", code: "ED", en: "Cabin crew scheduling or control reason", zh: "客艙組員派遣因素" },
+        { category: "In-flight Service", categoryZh: "空服", code: "EH", en: "Special request of cabin crew NOT within operational requirement", zh: "客艙組員作業範圍外之特別需求" },
+        { category: "In-flight Service", categoryZh: "空服", code: "EL", en: "Late cabin crew pre-flight check", zh: "客艙組員飛行前檢查延誤" },
+        { category: "In-flight Service", categoryZh: "空服", code: "EO", en: "Other delay within cabin crew reason (specify reason in SI column)", zh: "其他客艙組員之因素(於備註欄內說明原因)" },
+        // Cargo and Mail
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FB", en: "Late completion of cargo documentation", zh: "貨物文件延誤" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FC", en: "Improper cargo handling at the previous station", zh: "前站貨運不當處置" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FD", en: "Inadequate packing/ damage or leaking", zh: "貨物包裝不良/破損或內容物溢漏" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FE", en: "Late delivery of cargo / mail to the aircraft side", zh: "貨/郵延遲送達機邊" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FF", en: "Additional cleaning due to commercial (e.g. live animal carriage)", zh: "貨艙加強清潔" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FG", en: "Cargo/mail connection", zh: "接受轉機之貨/郵" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FH", en: "Lack of or damaged cargo/mail ULD or Dolly", zh: "貨/郵盤櫃或盤車不足或破損" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FJ", en: "Incorrect contour/build-up of ULDs", zh: "貨/郵打盤未按標準規定" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FK", en: "Late preparation of cargo in warehouse due to cargo terminal congestion or insufficient manpower", zh: "倉儲公司擁塞或人力不足致延誤貨/郵打盤/櫃" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FL", en: "Load shifted/collapsed", zh: "裝載倒盤/變形" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FM", en: "Late providing of allowable cargo load", zh: "貨運預報重量延誤" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FN", en: "Weight forecast error or last minute amendment.", zh: "預報重量錯誤或臨時修改" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FR", en: "Awaiting outbound booked cargo/space adjustment", zh: "出口訂位貨晚進倉或艙位調整" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FS", en: "Schedule changed due to cargo department requirement", zh: "貨營需求變更班表" },
+        { category: "Cargo and Mail", categoryZh: "貨運", code: "FO", en: "Other delay within Cargo/Mail reason (explain in SI column)", zh: "其他貨運因素(於備註欄內說明原因)" },
+        // Operation Dispatch
+        { category: "Operation Dispatch", categoryZh: "航機簽派", code: "JE", en: "Late completion of or change to flight plan or caused by aircraft or payload change", zh: "飛行計劃製作延誤或因航機更換、酬載臨時變更修改" },
+        { category: "Operation Dispatch", categoryZh: "航機簽派", code: "JO", en: "Dispatcher's reason (explain in SI column)", zh: "其他簽派人員之因素 (於備註欄內說明原因)" },
+        // Loading / Unloading
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LD", en: "Late or incorrect load sheet", zh: "平衡表延遲或錯誤因素" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LE", en: "Late or lack of loading staff or equipment or breakdown of loading equipment.", zh: "裝卸載人力或裝備延遲或不足或裝載設備故障。" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LJ", en: "Readjustment of cargo / bag position or change load plan", zh: "重新調整裝載計劃" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LK", en: "Loading /unloading - bulky, special load", zh: "特殊貨物、行李裝/卸載" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LL", en: "Late or lack of loading staff or equipment due to aircraft schedule irregularity", zh: "因班機離到時間變動造成裝卸載人力或裝備調度不及" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LX", en: "Mobile ramp system failure/slow response", zh: "機坪行動化系統故障/反應遲緩" },
+        { category: "Loading / Unloading", categoryZh: "裝/卸載", code: "LO", en: "Other delay within load reason (explain in SI column)", zh: "其他裝載因素 (於備註欄內說明原因)" },
+        // Technical and Aircraft Equipment
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MA", en: "Unable to release due to technical defect", zh: "因維修原因航機無法放行" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MB", en: "Awaiting engineers /AOG spares", zh: "等待機務人員/器材" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MC", en: "Late, lack of or breakdown of GPU/push back truck/de-icing equipment", zh: "GPU/push back truck/de-icing 等裝備不足、延遲就位或故障" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MD", en: "Late release from workshop - Scheduled maintenance", zh: "計劃修護之延遲放行" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "ME", en: "Late release due to special checks or additional work beyond normal maintenance - Non-scheduled maintenance", zh: "非計劃修護之延遲放行" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MF", en: "Late completion of fueling /de-fueling (Included station supported with maintenance representative)", zh: "加油/放油作業延遲完成(含外站有派駐機務代表之場站)" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MH", en: "Aircraft change due to maintenance reason", zh: "因修護原因更換航機" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MM", en: "Late A/C towing from hanger", zh: "飛機晚拖出棚廠" },
+        { category: "Technical and Aircraft Equipment", categoryZh: "機務", code: "MO", en: "Other delay within Technical reason (explain in SI column)", zh: "其他修護因素(於備註欄內說明原因)" },
+        // Miscellaneous
+        { category: "Miscellaneous", categoryZh: "其他", code: "NB", en: "Flight re-schedule/combine or aircraft type change for reasons other than maintenance", zh: "班機離到時間變更、航班合併或非機務原因之機型更改" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NC", en: "Cockpit crew legality", zh: "飛航組員休時或飛時限制" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "ND", en: "Flight re-routing / technical stop / diversion", zh: "航線更改、技降、或轉降." },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NE", en: "Deliberate delay to meet destination's arrival time", zh: "為配合到達目的地時間而延遲離場." },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NF", en: "Late crew boarding due to traffic congestion", zh: "因交通堵塞致組員晚到" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NG", en: "Late check-in counter closing due to traffic congestion or weather", zh: "因交通或天候原因致報到櫃台關閉過遲" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NH", en: "Cabin crew legality", zh: "客艙組員休時或飛時限制" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NM", en: "Crew late onboard due to aircraft swap for maintenance reason.", zh: "航機因修護需求換機而需交換組員，致使組員晚登機" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NP", en: "PDU malfunction", zh: "PDU 損壞" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NR", en: "Industrial or slowdown action carried out within company", zh: "本公司的罷工或怠工" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NS", en: "Industrial or slowdown action carried out by others (except Air Traffic Services)", zh: "非本公司的罷工或怠工 (除ATC外)" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NZ", en: "Reason of delay is still pending JC investigation (explain in SI column)", zh: "延誤原因尚待飛航管制部界定 (於備註欄內說明原因)" },
+        { category: "Miscellaneous", categoryZh: "其他", code: "NO", en: "Delay reason cannot cover by other delay codes (explain in SI column)", zh: "延誤代號以外之延誤 (於備註欄內說明原因)" },
+        // Flight Operations
+        { category: "Flight Operations", categoryZh: "航務", code: "OA", en: "Cockpit crew scheduling or control reason", zh: "飛航組員派遣因素" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OB", en: "Late cockpit crew boarding other than standby/ replacement/ connection", zh: "非因轉機或待命臨時調派致飛航組員就工作崗位過遲" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OC", en: "Awaiting standby/ replacement/ connection cockpit crew", zh: "因轉機或待命臨時調派致飛航組員就工作崗位過遲" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OF", en: "Clarification of documentation (e.g. NOTAM, flights plan, tech-log)", zh: "飛航文件澄清" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OG", en: "Special request of cockpit crew NOT within operational requirements", zh: "飛航組員作業範圍外之特別需求" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OL", en: "Late pre-flight/walk around check", zh: "飛行前檢查延誤" },
+        { category: "Flight Operations", categoryZh: "航務", code: "OO", en: "Cockpit crew reason (specify reason in SI column)", zh: "其他飛航組員之因素 (於備註欄內說明原因)" },
+        // Passenger and Baggage
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PA", en: "Bulky or excessive hand-carry baggage handling", zh: "大件及超額手提行李之處理" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PB", en: "Group late check-in", zh: "團體報到過遲" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PC", en: "Check-in baggage handling (congestion at baggage build-up/transfer area, late in baggage processing or sorting, etc.)", zh: "托運行李處理 (行李處理區壅塞或處理延遲等)" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PD", en: "Passenger cancel trip due to personal reasons", zh: "旅客因個人因素臨時取消行程" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PE", en: "Awaiting passengers from CI/AE flights", zh: "等候CI/AE航班轉來之乘客" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PF", en: "Awaiting baggage from CI/AE flights (including misload of transferred baggage)", zh: "等候CI/AE航班轉來之行李(包含轉機行李築打因素)" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PG", en: "VIP / commercial publicity / press handling", zh: "貴賓/要員/媒體處理" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PH", en: "Disabled/wheelchair passenger handling", zh: "行動不便/輪椅旅客處理" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PK", en: "Passenger no show (Internet check-in/Group check-in/Escape)", zh: "乘客未報到/登機(網路報到/團體報到/外勞逃逸)" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PL", en: "Handling sick/injury/deceased passenger", zh: "旅客生病/受傷/死亡處理" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PM", en: "Unruly/drunk passenger handling", zh: "滋擾/酒醉旅客處理" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PN", en: "Awaiting passengers from non-CI/AE flights", zh: "等候非CI/AE航班轉機旅客/行李" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PR", en: "Reload baggage of late-show passengers after unloading", zh: "卸載晚登機旅客之行李後再裝回" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PS", en: "Check-in counters late closing (acceptance of CI workers)", zh: "櫃台晚關(收受員工)" },
+        { category: "Passenger and Baggage", categoryZh: "乘客及行李", code: "PO", en: "Other passenger's reason (explain in SI column)", zh: "其他乘客之原因 (於備註欄內說明原因)" },
+        // Reactionary (前站延误归因)
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RA", en: "Late arrival due to airport and governmental authorities", zh: "因機場主管單位延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RB", en: "Late arrival due to insufficient ground / flying time", zh: "因地停/飛時不足延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RC", en: "Late arrival due to catering service", zh: "因餐服延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RD", en: "Late arrival due to aircraft damage", zh: "因飛機損壞延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RE", en: "Late arrival due to in-flight services", zh: "因空服因素延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RF", en: "Late arrival due to cargo", zh: "因貨運延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RJ", en: "Late arrival due to operation dispatch", zh: "因簽派因素延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RL", en: "Late arrival due to loading/unloading", zh: "因裝載因素延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RM", en: "Late arrival due to maintenance", zh: "因機務延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RN", en: "Late arrival due to miscellaneous reasons", zh: "因其他因素延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RO", en: "Late arrival due to flight operations", zh: "因航務延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RP", en: "Late arrival due to passenger and baggage", zh: "因乘客及行李延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RS", en: "Late arrival due to over sale", zh: "因超售延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RT", en: "Late arrival due to traffic", zh: "因航管流量延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RW", en: "Late arrival due to weather impact at original station or flight divert.", zh: "因原站天氣或轉降延誤到站" },
+        { category: "Reactionary (Reactionary Delays)", categoryZh: "反應性延誤/前站延遲", code: "RX", en: "Late arrival due to information management systems", zh: "因資訊系統延誤到站" },
+        // Marketing and Sales
+        { category: "Marketing and Sales", categoryZh: "客運", code: "SA", en: "Overbooking", zh: "班機超售" },
+        { category: "Marketing and Sales", categoryZh: "客運", code: "SB", en: "Ticketing or reservation reason", zh: "票務或訂位作業因素" },
+        // Traffic
+        { category: "Traffic", categoryZh: "運務", code: "TB", en: "Searching for missing passenger", zh: "尋找乘客" },
+        { category: "Traffic", categoryZh: "運務", code: "TC", en: "Passenger discrepancies", zh: "乘客登機人數不符" },
+        { category: "Traffic", categoryZh: "運務", code: "TD", en: "Reconciling passenger seating", zh: "座位問題處理/調整" },
+        { category: "Traffic", categoryZh: "運務", code: "TE", en: "Previous station improper passenger / baggage handling", zh: "前站乘客或行李處置不當" },
+        { category: "Traffic", categoryZh: "運務", code: "TF", en: "Check-in reason / negligence", zh: "報到作業因素或疏失" },
+        { category: "Traffic", categoryZh: "運務", code: "TG", en: "Late delivery or reason of passenger documents / forms", zh: "艙單、文件或表格遲交因素" },
+        { category: "Traffic", categoryZh: "運務", code: "TH", en: "Check-in counters late opening or closing", zh: "報到櫃台開/關過遲" },
+        { category: "Traffic", categoryZh: "運務", code: "TJ", en: "Passenger step or shuttle bus late on position", zh: "旅客登機梯或接駁車延遲就位" },
+        { category: "Traffic", categoryZh: "運務", code: "TK", en: "Searching for missing passenger due to boarding gate change", zh: "因登機門更改而尋找旅客" },
+        { category: "Traffic", categoryZh: "運務", code: "TO", en: "Other reason within Traffic Handling (explain in SI column)", zh: "其他運務作業之因素 (於備註欄內說明原因)" },
+        // Weather
+        { category: "Weather", categoryZh: "天氣", code: "WA", en: "Ground handling impaired by adverse weather conditions", zh: "天候影響地面作業" },
+        { category: "Weather", categoryZh: "天氣", code: "WB", en: "Removal of ice or snow from aircraft", zh: "航機除冰或除雪" },
+        { category: "Weather", categoryZh: "天氣", code: "WC", en: "Weather at departure airport below aircraft operating limit or ATC flow control restrictions", zh: "離場站天氣低於航機最低起降標準或航管流量管制" },
+        { category: "Weather", categoryZh: "天氣", code: "WD", en: "Weather at destination airport below aircraft operating limit or ATC flow control restrictions", zh: "到場站天氣低於航機最低起降標準或航管流量管制" },
+        { category: "Weather", categoryZh: "天氣", code: "WE", en: "En-route conditions below aircraft operating limit or diverted to alternate airport due to weather", zh: "途中天氣低於航機最低操作標準或因天氣因素轉降至備降機場" },
+        { category: "Weather", categoryZh: "天氣", code: "WO", en: "Other weather reason (explain in SI column)", zh: "其他天氣因素(於備註欄內說明原因)" },
+        // EDP/Automated Equipment Failure
+        { category: "EDP/Automated Equipment Failure", categoryZh: "資訊管理系統", code: "XA", en: "CI computer systems (DCS, Boarding Control System, Reservations System interface) failure/slow response", zh: "本公司電腦系統故障/反應遲緩" },
+        { category: "EDP/Automated Equipment Failure", categoryZh: "資訊管理系統", code: "XB", en: "Non-CI computer systems (GHA computer systems, Automated Flight Plan system, CUTE, eWBS) failure/slow response", zh: "非本公司電腦系統故障/反應遲緩" },
+        { category: "EDP/Automated Equipment Failure", categoryZh: "資訊管理系統", code: "XC", en: "Communication network (SITA, ACARS, PTT, LAN) failure/slow response", zh: "SITA/ACARS/PTT/LAN 網路系統故障/反應遲緩" }
+    ];
+
+    // 构建分类Map及下拉选项数组
+    const categoryMap = new Map();
+    delayData.forEach(item => {
+        if (!categoryMap.has(item.category)) {
+            categoryMap.set(item.category, { categoryEn: item.category, categoryZh: item.categoryZh, items: [] });
+        }
+        categoryMap.get(item.category).items.push(item);
+    });
+    // 获取排序后的类别列表 (保持展示顺序与文档类似，但全部展示)
+    const sortedCategories = Array.from(categoryMap.keys()).sort((a,b)=>a.localeCompare(b));
+    // 初始化下拉菜单
+    const categorySelect = document.getElementById('categorySelect');
+    function buildSelect() {
+        let options = '<option value="ALL">📂 全部類別 (所有延誤代碼)</option>';
+        for (let catEn of sortedCategories) {
+            const catInfo = categoryMap.get(catEn);
+            options += `<option value="${escapeHtml(catEn)}">${escapeHtml(catInfo.categoryZh)} · ${escapeHtml(catEn)}</option>`;
+        }
+        categorySelect.innerHTML = options;
+    }
+    buildSelect();
+
+    const container = document.getElementById('categoriesContainer');
+    const searchInput = document.getElementById('searchInput');
+    const resultStats = document.getElementById('resultStats');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // 渲染函数 (根据选中的类别 + 搜索词)
+    function render() {
+        const selectedCategory = categorySelect.value;
+        const searchText = searchInput.value.trim().toLowerCase();
+        let totalVisible = 0;
+        let html = '';
+
+        // 决定要显示的类别列表
+        let categoriesToShow = [];
+        if (selectedCategory === 'ALL') {
+            categoriesToShow = sortedCategories;
+        } else {
+            if (categoryMap.has(selectedCategory)) categoriesToShow = [selectedCategory];
+            else categoriesToShow = [];
+        }
+
+        for (let catEn of categoriesToShow) {
+            const catData = categoryMap.get(catEn);
+            let filteredItems = catData.items.filter(item => {
+                if (searchText === '') return true;
+                return item.code.toLowerCase().includes(searchText) ||
+                       item.en.toLowerCase().includes(searchText) ||
+                       item.zh.toLowerCase().includes(searchText);
+            });
+            if (filteredItems.length === 0) continue;
+            totalVisible += filteredItems.length;
+            html += `
+                <div class="category">
+                    <div class="category-header">
+                        <div class="category-title">${escapeHtml(catData.categoryZh)} · ${escapeHtml(catEn)}</div>
+                        <div class="category-sub">📌 代码数量：${filteredItems.length}</div>
+                    </div>
+                    <div class="codes-grid">
+            `;
+            filteredItems.forEach(item => {
+                html += `
+                    <div class="delay-card">
+                        <div class="code-badge">${escapeHtml(item.code)}</div>
+                        <div class="en-desc">${escapeHtml(item.en)}</div>
+                        <div class="zh-desc">${escapeHtml(item.zh)}</div>
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+        }
+        if (totalVisible === 0) {
+            html = `<div class="no-results">🔍 沒有符合條件的延誤代碼，請調整篩選條件或關鍵字 ✨</div>`;
+        }
+        container.innerHTML = html;
+        resultStats.innerText = `📋 顯示 ${totalVisible} 條延誤代碼`;
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function handleFilterChange() {
+        render();
+    }
+
+    // 重置所有筛选
+    function resetFilters() {
+        categorySelect.value = 'ALL';
+        searchInput.value = '';
+        render();
+    }
+
+    categorySelect.addEventListener('change', handleFilterChange);
+    searchInput.addEventListener('input', handleFilterChange);
+    resetBtn.addEventListener('click', resetFilters);
+    render(); // 初始渲染
+</script>
+</body>
+</html>
